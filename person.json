@@ -1,0 +1,1 @@
+{"processId":"test.hello-process","params":[{"artifactId":"test","version":"1.0","groupId":"test","paramName":"person","paramType":"test.test.Person","attributes":{"age":26,"name":"William"}}]}
