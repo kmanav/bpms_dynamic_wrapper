@@ -3,6 +3,8 @@ package com.redhat.gss.bpms.service;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
@@ -25,10 +27,12 @@ import com.redhat.gss.bpms.model.ProcessInfo;
 @Singleton
 public class BPMSService {
 
-	final String USERNAME = "jesuino";
-	final String PASSWORD = "redhat2014!";
-	final String DEPLOYMENT_ID = "test:test:1.0";
-	final String BPMS_URL = "http://localhost:8180/business-central";
+	final String USERNAME =       System.getProperty("BPMS_USERNAME", "admin");
+	final String PASSWORD =       System.getProperty("BPMS_PASSWORD", "password");
+	final String DEPLOYMENT_ID =  System.getProperty("BPMS_GAV", "test:test:1.0");
+	final String BPMS_URL =       System.getProperty("BPMS_URL", "http://localhost:8080/business-central");
+	
+	private final static Logger LOG = Logger.getLogger(BPMSService.class.getName());
 
 	@Inject
 	DataModelsLoader loader;
@@ -38,6 +42,7 @@ public class BPMSService {
 	@PostConstruct
 	public void initialize() {
 		try {
+		   LOG.log(Level.INFO, "Initializing BPMSService[url=" + BPMS_URL + ", deployment=" + DEPLOYMENT_ID + ", credentials=" + USERNAME + "/*****]");
 			engine = RemoteRestRuntimeEngineFactory.newBuilder()
 					.addDeploymentId(DEPLOYMENT_ID).addUserName(USERNAME)
 					.addPassword(PASSWORD).addUrl(new URL(BPMS_URL)).build()
@@ -51,15 +56,37 @@ public class BPMSService {
 		return engine;
 	}
 
-	public void startProcess(ProcessInfo processInfo) throws Exception {
+	public ProcessInfo startProcess(ProcessInfo processInfo) throws Exception {
 		Map<String, Object> params = new HashMap<String, Object>();
 		for (ParamInfo param : processInfo.getParams()) {
 			Object value = loader.loadObject(param);
 			params.put(param.getParamName(), value);
 		}
-		engine.getKieSession().startProcess(processInfo.getProcessId(), params)
-				.getId();
+		long processId = engine.getKieSession().startProcess(processInfo.getProcessId(), params).getId();
+		LOG.log(Level.FINE, "process instance " + processId + " created");
+		processInfo.setProcessInstanceId(processId);
+		return processInfo;
 	}
+	
+	public boolean abortProcess(ProcessInfo processInfo) throws Exception {
+	   try {
+	      // only works with singleton strategy
+   		//engine.getKieSession().abortProcessInstance(processInfo.getProcessInstanceId());
+   		
+   		// use with process instance strategy:
+   		RemoteRuntimeEngine processEngine = RemoteRestRuntimeEngineFactory.newBuilder()
+					.addDeploymentId(DEPLOYMENT_ID)
+					.addProcessInstanceId(processInfo.getProcessInstanceId())
+					.addUserName(USERNAME)
+					.addPassword(PASSWORD).addUrl(new URL(BPMS_URL)).build()
+					.newRuntimeEngine();
+			processEngine.getKieSession().abortProcessInstance(processInfo.getProcessInstanceId());
+      } catch(Exception ex) {
+         ex.printStackTrace();
+         return false;
+      }
+		return true;
+	}	
 
 	public Object getTaskContent(int id) throws Exception {
 		String url = UriBuilder.fromPath(BPMS_URL).path("rest/task")

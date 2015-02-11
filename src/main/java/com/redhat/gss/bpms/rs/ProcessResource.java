@@ -18,6 +18,8 @@ package com.redhat.gss.bpms.rs;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -37,15 +39,29 @@ import com.redhat.gss.bpms.service.BPMSService;
 @Produces(MediaType.APPLICATION_JSON)
 public class ProcessResource {
 
+	private final static Logger LOG = Logger.getLogger(ProcessResource.class.getName());
+
 	@Inject
 	BPMSService service;
 
 	@Path("/start")
 	@POST
-	public Response startProcess(ProcessInfo processInfo) throws Exception {
-		service.startProcess(processInfo);
-		return Response.ok().build();
+	public ProcessInfo startProcess(ProcessInfo processInfo) throws Exception {
+		ProcessInfo process = service.startProcess(processInfo);
+		LOG.log(Level.INFO, "Process with id " + process.getProcessInstanceId() + " started");
+		return process;
 	}
+	
+	@Path("/abort")
+	@POST
+	public Response abortProcess(ProcessInfo processInfo) throws Exception {
+		boolean success = service.abortProcess(processInfo);
+		LOG.log(Level.INFO, "Process with id " + processInfo.getProcessInstanceId() + (success? " successfully":" NOT" ) + " aborted");
+		if(success)
+		   return Response.ok().build();
+		else 
+		   return Response.serverError().build();
+	}	
 
 	// used to generate a sample json for me
 	@GET

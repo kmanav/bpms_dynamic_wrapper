@@ -26,9 +26,6 @@ public class DataModelsLoader {
 
 	@PostConstruct
 	public void loadDataModel() {
-		// My Maven config
-		System.setProperty("kie.maven.settings.custom",
-				"/home/wsiqueir/.m2/settings.xml");
 		kieServices = KieServices.Factory.get();
 		containers = new HashMap<String, KieContainer>();
 	}
